@@ -1,6 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
+const mongoose = require("mongoose")
 const app = express();
 const _ = require("lodash")
 
@@ -8,17 +9,30 @@ const homeStartingContent = "Rumour has it targeted online advertising was devel
 const aboutContent = "You know the Grammys are a joke when Future doesn't win Best Everything. For the name of an act as serious as killing someone, assassination literally translates to buttbuttination. INjuries always keep you OUT of things. Visticula. You should (check out the rest of my portfolio). If you wake up with a giant zit, you are really facing your fears when you look in the mirror.";
 const contactContent = "If the word kerning is kerned poorly, it kind of looks like learning - which is appropriate because both are important. I'm the only person in the world with my name. Pantone is a colour but also the singular version of pants. Curling is the best sport named after something you do to your hair. Cemeteries are just garbage dumps filled with humans.";
 
-var allPost=[];
+// var allPost=[];
 
 app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended:true}));
 app.use(express.static("public"));
 
+mongoose.connect("mongodb://localhost:27017/blogDB", {useNewUrlParser: true});
+
+const postSchema = {
+    title : String,
+    content : String
+}
+
+const Post = mongoose.model("Post",postSchema)
+
 app.get("/",function(req,res){
-   res.render("home",{
-       homeContentVariable:homeStartingContent,
-       allPost:allPost
-    });
+
+    Post.find({}, function(err, posts){
+        res.render("home", {
+          startingContent: homeStartingContent,
+          posts: posts     
+          });
+     
+      })
 })
 
 app.get("/about",function(req,res){
@@ -34,37 +48,27 @@ app.get("/compose",function(req,res){
 })
 
 app.post("/compose",function(req,res){    
-    const post = {
+   const post = new Post({
         title:req.body.title,
         content:req.body.post
-    }    
-    allPost.push(post);
+    })
+    post.save(function(err){
+        if(!err){
+            console.log("Saved!!!")
+        }
+    })
     res.redirect("/");
 })
 
-app.get("/posts/:postName",function(req,res){
-    var requestedTitleUser = _.lowerCase(req.params.postName);    
-    var count=0;
-    var requestedTitle;
-    var requestedContent;
-    allPost.forEach(function(post){
-        if(requestedTitleUser ==  _.lowerCase(post.title)){
-            requestedTitle = post.title;
-            requestedContent = post.content;
-            count=1;
-        }        
-    })
-    if(count==1){
-        res.render("post",{dynamicTitle:requestedTitle, dynamicPost:requestedContent})
-        console.log("found!!")
-    }
-    else{
-        console.log("not found!!")
-    }    
+app.get("/posts/:postId",function(req,res){
+    const requestedPostId = req.params.postId;
+      Post.findOne({_id: requestedPostId},function(err,post){
+        res.render("post", {
+            title: post.title,
+            content: post.content
+          });
+    })   
 })
-
-
-
 
 app.listen(3000,function(req,res){
     console.log("server started on port 3000.....")
